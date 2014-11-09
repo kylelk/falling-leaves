@@ -8,8 +8,15 @@ import random
 leaf_count = 30
 min_fall_duration = 10.0
 max_fall_duration = 15.0
+min_rotation_time = 1.0
+max_rotation_time = 3.0
 min_leaf_size = 0.25
 max_leaf_size = 0.75
+min_sway_width = 90.0
+max_sway_width = 110.0
+path_points = 100
+DEBUG = False
+
 
 root = ET.Element("svg")
 root.set("xmlns","http://www.w3.org/2000/svg")
@@ -23,8 +30,8 @@ defs = ET.SubElement(root, "defs")
 g = ET.SubElement(defs, "g")
 g.set("id", "leaf")
 path = ET.SubElement(g, "path")
-#path.set("fill", "#D40000")
 path.set("transform", "scale(0.25)")
+# the leaf shape
 path.set("d", """M127.251-22.679l-26.198,49.003c-2.974,5.326-8.297,4.834-13.625,1.858l-18.97-9.851l14.14,75.266
 		c2.975,13.752-6.564,13.752-11.272,7.808L38.223,64.245l-5.376,18.872c-0.617,2.478-3.345,5.078-7.433,4.457l-41.855-8.82
 		l10.994,40.08c2.354,8.92,4.187,12.613-2.377,14.967l-14.919,7.032l72.054,58.692c2.855,2.22,4.295,6.216,3.28,9.829l-6.307,20.753
@@ -37,34 +44,36 @@ path.set("d", """M127.251-22.679l-26.198,49.003c-2.974,5.326-8.297,4.834-13.625,
 
 for a in range(0,10):
     points = []
-    offset = random.randrange(-25,25)
+    sway_width = random.randrange(min_sway_width, max_sway_width)
     
-    for i in range(-10,100):
-        points.append([(a*100)+(100*sin(i)), (20*i)+offset])
+    # create a sine wave path
+    wave_height = (path_points/(15.0*1.5))
+    for i in range(path_points):
+        points.append([(a*100)+(sway_width*sin(i/wave_height)),
+                       (1000.0/path_points)*i])
     
     first = points.pop(0)
-    point_list = "M%0.3f,%0.3f "%(first[0], random.randrange(-1000,0))
-    point_list += " ".join( map(lambda a: "L%0.3f,%0.3f"%(a[0],a[1]), points) )
+    point_list = "M%0.3f,%0.3f "%(first[0], -15)
+    point_list += " ".join( map(lambda b: "L%0.3f,%0.3f"%(b[0],b[1]), points) )
         
     path = ET.SubElement(root, "path")
     path.set("d", point_list)
     path.set("class", "mPath")
     path.set("fill", "none")
-    # uncomment this line to see path
-    #path.set("stroke", "black")
-    path.set("stroke-width", "2")
+    # the sine path will be visible when debuging
+    if DEBUG:
+        path.set("stroke", "black")
+        path.set("stroke-width", "2")
     path.set("id", "p%d"%a)
     
 
 for i in range(0, leaf_count):
-    #g = ET.SubElement(root, "g")
-    #g.set("transform", "scale(%0.3f)"%random.uniform(min_leaf_size, max_leaf_size))
-    
     use = ET.SubElement(root, "use")
     use.set("xlink:href", "#leaf")
     use.set("x", "0")
     use.set("y", "0")
-    use.set("fill", "hsla(%d, 100%%, 50%%, .75)"%random.randrange(0,100))
+    # generate a fall color
+    use.set("fill", "hsla(%d, 100%%, 50%%, .90)"%random.randrange(0,100))
     
     animateMotion = ET.SubElement(use, "animateMotion")
     animateMotion.set("dur", "%0.3f"%random.uniform(min_fall_duration, max_fall_duration))
@@ -72,14 +81,21 @@ for i in range(0, leaf_count):
     mpath = ET.SubElement(animateMotion, "mpath")
     mpath.set("xlink:href", "#p%d"%(i%10))
     
+    # random rotation starting angle
     leaf_rotation = random.randrange(0,360)
+    leaf_rotation = [leaf_rotation, leaf_rotation+360]
+    # reverse the leaf rotation
+    if bool(random.getrandbits(1)):
+        leaf_rotation.reverse()
+    
+    
     animateTransform = ET.SubElement(use, "animateTransform")
     animateTransform.set("attributeName", "transform")
     animateTransform.set("attributeType", "XML")
     animateTransform.set("type", "rotate")
-    animateTransform.set("from", str(leaf_rotation))
-    animateTransform.set("to",str(leaf_rotation+360))
-    animateTransform.set("dur", "2s")
+    animateTransform.set("from", str(leaf_rotation[0]))
+    animateTransform.set("to", str(leaf_rotation[1]))
+    animateTransform.set("dur", "%0.3fs"%random.uniform(min_rotation_time, max_rotation_time))
     animateTransform.set("repeatCount", "indefinite")
     
 
@@ -98,11 +114,6 @@ html = """
 <style>
 svg {
 	 overflow:hidden;
-}
-mPath {
-	fill:none;
-	stroke-width:3;
-	stroke: black;
 }
 </style>
 </head>
